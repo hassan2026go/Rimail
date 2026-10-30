@@ -1,1 +1,0 @@
-{ "name": "rimail-bridge", "private": true, "type": "module", "dependencies": { "postal-mime": "^2.4.0" }, "devDependencies": { "wrangler": "^3.90.0" }, "scripts": { "deploy": "wrangler deploy" } }
