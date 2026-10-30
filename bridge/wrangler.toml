@@ -1,1 +1,8 @@
-uchxhxhx
+name = "rimail-bridge"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+PROJECT_ID = "YOUR_FIREBASE_PROJECT_ID"
+DOMAIN = "yourdomain.com"
+ALLOWED_ORIGIN = "https://YOUR_PROJECT.web.app"   # عنوان تطبيقك بالضبط (بدون / في النهاية)
