@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && exists(/databases/$(db)/documents/admins/$(request.auth.uid)); }
+    function myAcc() { return get(/databases/$(db)/documents/accounts/$(request.auth.uid)).data; }
+    function active() { return myAcc().get('status', 'active') == 'active'; }
+    function myAddr() { return myAcc().username + '@rimail.app'; }
+    function signupOpen() {
+      return !exists(/databases/$(db)/documents/config/app) || get(/databases/$(db)/documents/config/app).data.get('signupOpen', true) == true;
+    }
+
+    function validMail(d) {
+      return d.keys().hasOnly(['id','from','fromName','to','cc','bcc','subject','body','html','ts','folder','read','starred','starType',
+                               'important','labels','archived','snoozeUntil','category','prevFolder','trashedAt','threadId','atts','muted',
+                               'expires','noForward','receipt','receiptDone','filtered','sendAt','auto','ext','invite'])
+        && d.keys().hasAll(['id','from','to','subject','body','ts','folder'])
+        && d.subject is string && d.subject.size() <= 300
+        && d.body is string && d.body.size() <= 20000
+        && (!('html' in d) || (d.html is string && d.html.size() <= 70000))
+        && d.from is string && d.from.size() <= 120
+        && (!('fromName' in d) || (d.fromName is string && d.fromName.size() <= 80))
+        && d.to is list && d.to.size() <= 50
+        && (!('cc' in d) || (d.cc is list && d.cc.size() <= 50))
+        && (!('bcc' in d) || (d.bcc is list && d.bcc.size() <= 50))
+        && (!('labels' in d) || (d.labels is list && d.labels.size() <= 100))
+        && (!('atts' in d) || (d.atts is list && d.atts.size() <= 10))
+        && d.ts is number
+        && d.folder in ['inbox','sent','draft','trash','spam','scheduled'];
+    }
+
+    /* ── أسماء المستخدمين (عامة للقراءة داخل التطبيق) ── */
+    match /usernames/{u} {
+      allow read: if signedIn();
+      allow create: if signedIn() && signupOpen()
+        && u.matches('^[a-z0-9][a-z0-9._]{1,28}[a-z0-9]$')
+        && !(u in ['team','tips','community','security','mailer-daemon','noreply','no-reply','postmaster','abuse','support','root','administrator','webmaster','daemon'])
+        && request.resource.data.keys().hasOnly(['uid','name','avatar'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.get('avatar', '') == ''
+        && getAfter(/databases/$(db)/documents/accounts/$(request.auth.uid)).data.username == u;
+      allow update: if signedIn() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','avatar'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 30000;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    /* ── الحسابات: الخطة والحالة بيد المشرف فقط ── */
+    match /accounts/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && signupOpen()
+        && request.resource.data.keys().hasOnly(['username','name','plan','status','createdAt','lastLogin'])
+        && request.resource.data.plan == 'free' && request.resource.data.status == 'active'
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && getAfter(/databases/$(db)/documents/usernames/$(request.resource.data.username)).data.uid == request.auth.uid;
+      allow update: if signedIn() && (
+        (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','lastLogin'])
+           && request.resource.data.name is string && request.resource.data.name.size() <= 60)
+        || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan','status'])
+           && request.resource.data.plan in ['free','pro'] && request.resource.data.status in ['active','suspended','banned']));
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    /* ── الملف الشخصي والإعدادات (خاص بصاحبه) ── */
+    match /users/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && !request.resource.data.keys().hasAny(['plan','planUntil','username','isAdmin'])
+        && request.resource.data.get('avatar', '').size() <= 150000
+        && request.resource.data.get('bio', '').size() <= 400;
+    }
+
+    /* ── صناديق البريد ── */
+    match /mailboxes/{uid}/mails/{id} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid && validMail(request.resource.data);
+      allow create: if signedIn() && validMail(request.resource.data) && request.resource.data.id == id
+        && (
+          request.auth.uid == uid
+          /* تسليم رسالة إلى مستخدم آخر: نسخة واردة نظيفة، من حساب نشط، وبهوية المرسل الحقيقية */
+          || ( active()
+            && id.matches('^[a-z0-9]{6,40}-r$')
+            && request.resource.data.folder == 'inbox'
+            && request.resource.data.from == myAddr()
+            && request.resource.data.get('fromName', '') == get(/databases/$(db)/documents/usernames/$(myAcc().username)).data.name
+            && request.resource.data.get('read', false) == false
+            && request.resource.data.get('starred', false) == false
+            && request.resource.data.get('important', false) == false
+            && request.resource.data.get('labels', []).size() == 0
+            && request.resource.data.get('bcc', []).size() == 0)
+          /* إعلان من المشرف */
+          || ( isAdmin() && id.matches('^[a-z0-9]{6,40}-b[0-9]+$')
+            && request.resource.data.from == 'team@rimail.app'
+            && request.resource.data.folder == 'inbox')
+        );
+    }
+
+    /* ── التقويم ── */
+    match /calendars/{uid}/events/{id} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.title is string && request.resource.data.title.size() <= 200
+        && request.resource.data.start is number && request.resource.data.end is number
+        && request.resource.data.get('notes', '').size() <= 2000;
+    }
+
+    /* ── البلاغات والإشراف ── */
+    match /reports/{id} {
+      allow create: if signedIn() && request.resource.data.reporter == request.auth.uid
+        && request.resource.data.status == 'open'
+        && request.resource.data.get('snippet', '').size() <= 2000
+        && request.resource.data.get('note', '').size() <= 600;
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
+    match /config/{d} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;   /* تُنشأ يدويًا من لوحة Firebase فقط */
+    }
+    match /audit/{id} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+  }
+}
