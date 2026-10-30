@@ -1,0 +1,24 @@
+{
+  "packageId": "app.rimail.twa",
+  "host": "YOUR_PROJECT.web.app",
+  "name": "Rimail",
+  "launcherName": "Rimail",
+  "display": "standalone",
+  "themeColor": "#f6f8fc",
+  "themeColorDark": "#131314",
+  "navigationColor": "#f6f8fc",
+  "backgroundColor": "#f6f8fc",
+  "enableNotifications": true,
+  "startUrl": "/#!/inbox",
+  "iconUrl": "https://YOUR_PROJECT.web.app/icon-512.png",
+  "maskableIconUrl": "https://YOUR_PROJECT.web.app/icon-maskable-512.png",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "orientation": "default",
+  "fallbackType": "customtabs",
+  "signingKey": { "path": "./rimail-android.keystore", "alias": "rimail" },
+  "shortcuts": [
+    { "name": "رسالة جديدة", "short_name": "كتابة", "url": "/#!/inbox", "icon": "https://YOUR_PROJECT.web.app/icon-192.png" },
+    { "name": "التقويم", "short_name": "التقويم", "url": "/#!/calendar", "icon": "https://YOUR_PROJECT.web.app/icon-192.png" }
+  ]
+}
