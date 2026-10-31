@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-JwZj4CPdltK9Gyg35GDkolq5D6PkOOyVLvWVNPwHnA0=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-E5vNG/zzcqyOtGP+KamHbKRHs/VDQL1doQObYYRnM3k=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -429,6 +429,13 @@ input:checked+.swatch,.swatch.on{border-color:var(--text);box-shadow:0 0 0 2px v
 .snip{margin:6px 0 0;padding:8px 10px;background:var(--hover,rgba(128,128,128,.12));border-radius:8px;white-space:pre-wrap;max-height:140px;overflow:auto;font-size:13px}
 .swl{margin-inline-start:8px}
 .sig{color:var(--sub)}
+/* إصلاح عرض صفحات الإعدادات على الجوال */
+#page{min-width:0;max-width:100%;overflow-x:hidden}
+.s-wrap{width:100%;min-width:0}.s-nav{min-width:0;max-width:100%}.s-body,.s-box{min-width:0;max-width:100%}
+.s-row{flex-wrap:wrap}.s-txt{flex:1 1 150px;min-width:0}.s-ctl{max-width:100%;flex-shrink:1}.s-ctl select{max-width:100%}
+.ct-wrap,.cal-bar,.cal-grid,.cal-cols,.cal-agenda{max-width:100%;min-width:0}
+.about{display:flex;gap:14px;align-items:center}
+html,body{overflow-x:hidden;max-width:100vw}#app{overflow-x:clip}
 
 </style>
 </head>
@@ -484,7 +491,10 @@ const LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4
 const VERSION = '1.0.0';
 const DOMAIN = String(CFG.domain || 'rimail.app').toLowerCase();
 const USE_FIREBASE = !/^YOUR_/.test(FIREBASE_CONFIG.apiKey || 'YOUR_');
-const USE_CLOUD = !/^YOUR_/.test(CLOUDINARY.cloudName || 'YOUR_');
+const SUPA = CFG.supabase || {};
+const USE_SUPA = /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(String(SUPA.url || '').replace(/\/$/, '')) && !!SUPA.anonKey && !/^YOUR_/.test(SUPA.anonKey);
+const SUPA_URL = USE_SUPA ? SUPA.url.replace(/\/$/, '') : '', SUPA_BUCKET = SUPA.bucket || 'attachments';
+const USE_CLOUD = USE_SUPA || !/^YOUR_/.test(CLOUDINARY.cloudName || 'YOUR_');
 const USE_BRIDGE = !!BRIDGE_URL && !/^YOUR_/.test(BRIDGE_URL);
 
 /* خطط الاستخدام: المجانية الآن، والمدفوعة جاهزة (plan = "pro" في مستند المستخدم) */
@@ -646,7 +656,7 @@ function download(name, content, type = 'application/octet-stream') {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 const fileIcon = t => /^image\//.test(t) ? 'image' : /pdf/.test(t) ? 'picture_as_pdf' : /^video\//.test(t) ? 'movie' : /^audio\//.test(t) ? 'audio_file' : /zip|rar|7z|tar/.test(t) ? 'folder_zip' : /sheet|excel|csv/.test(t) ? 'table_chart' : /word|document|text/.test(t) ? 'description' : 'attach_file';
-const safeUrl = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\//.test(u) || /^data:[a-z]+\/[a-z0-9.+-]+;base64,/i.test(u));
+const safeUrl = u => typeof u === 'string' && (/^https:\/\/res\.cloudinary\.com\//.test(u) || /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/[\w.\/-]+$/.test(u) || /^data:[a-z]+\/[a-z0-9.+-]+;base64,/i.test(u));
 
 /* ═══════════════════════════ نموذج الرسالة ═══════════════════════════ */
 const blank = () => ({
@@ -905,7 +915,15 @@ async function makeFirebase() {
 /* ═══ رفع المرفقات (Cloudinary) ═══ */
 function uploadFile(file, onProgress) {
   return new Promise((resolve, reject) => {
-    if (USE_CLOUD) {
+    if (USE_SUPA) {
+      const ext = (file.name.match(/\.([A-Za-z0-9]{1,8})$/) || [])[1] || 'bin', path = `${S.user ? S.user.uid : 'u'}/${uid()}.${ext.toLowerCase()}`;
+      const x = new XMLHttpRequest();
+      x.open('POST', `${SUPA_URL}/storage/v1/object/${encodeURIComponent(SUPA_BUCKET)}/${path}`);
+      x.setRequestHeader('apikey', SUPA.anonKey); x.setRequestHeader('Authorization', 'Bearer ' + SUPA.anonKey); x.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); x.setRequestHeader('x-upsert', 'false');
+      x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      x.onload = () => { if (x.status < 300) resolve({ url: `${SUPA_URL}/storage/v1/object/public/${encodeURIComponent(SUPA_BUCKET)}/${path}` }); else reject({ code: 'rimail/upload' }); };
+      x.onerror = () => reject({ code: 'rimail/upload' }); x.send(file);
+    } else if (USE_CLOUD) {
       const x = new XMLHttpRequest(), fd = new FormData();
       fd.append('file', file); fd.append('upload_preset', CLOUDINARY.uploadPreset);
       x.open('POST', `https://api.cloudinary.com/v1_1/${encodeURIComponent(CLOUDINARY.cloudName)}/auto/upload`);
@@ -1174,9 +1192,9 @@ function errMsg(e) {
     'auth/network-request-failed': 'تعذّر الاتصال بالإنترنت.', 'auth/weak-password': 'كلمة المرور ضعيفة.',
     'auth/popup-closed-by-user': 'أُغلقت نافذة تسجيل الدخول.', 'auth/cancelled-popup-request': 'أُغلقت نافذة تسجيل الدخول.',
     'auth/requires-recent-login': 'سجّل الدخول من جديد ثم أعد المحاولة.', 'auth/user-disabled': 'هذا الحساب معطّل.',
-    'rimail/insecure': 'يتطلب هذا الوضع اتصالًا آمنًا (HTTPS).', 'rimail/needs-firebase': 'هذه الميزة تتطلب تفعيل Firebase.',
+    'rimail/insecure': 'يتطلب هذا الوضع اتصالًا آمنًا (HTTPS).', 'rimail/needs-firebase': 'هذه الميزة غير متاحة حاليًا.',
     'rimail/closed': 'التسجيل مغلق حاليًا.', 'rimail/suspended': 'حسابك موقوف ولا يمكنه الإرسال.', 'rimail/quota': 'امتلأت مساحة التخزين المحلية.',
-    'rimail/nocloud': 'رفع المرفقات غير مفعّل. أضف إعدادات Cloudinary.', 'rimail/toobig-local': 'في الوضع التجريبي الحد الأقصى للملف 700 ك.ب.',
+    'rimail/nocloud': 'إرفاق الملفات غير متاح حاليًا.', 'rimail/toobig-local': 'حجم الملف كبير جدًا.',
     'rimail/upload': 'فشل رفع الملف.', 'rimail/image': 'تعذّر قراءة الصورة.', 'rimail/bridge': 'تعذّر الاتصال بجسر البريد الخارجي.',
     'permission-denied': 'لا تملك صلاحية هذا الإجراء.', 'unavailable': 'الخدمة غير متاحة. تحقق من الاتصال.'
   };
@@ -1418,7 +1436,7 @@ function renderDrawer() {
     `<div class="nav-item" role="button" tabindex="0" data-addlabel="1">${I('add')}<span class="lbl">إنشاء تصنيف جديد</span></div><div class="nav-sep"></div>` +
     item('calendar', 'calendar_month', 'التقويم') + item('contacts', 'contacts', 'جهات الاتصال') + item('settings', 'settings', 'الإعدادات') +
     (S.user.isAdmin ? item('admin', 'admin_panel_settings', 'لوحة الإشراف') : '') +
-    `<div class="nav-foot">Rimail ${VERSION}${USE_FIREBASE ? '' : ' · وضع تجريبي'}</div>`;
+    `<div class="nav-foot">Rimail</div>`;
 }
 function renderTabs() {
   const t = $('#tabs'), cats = visibleCats(), show = S.view === 'inbox' && S.settings.inboxType === 'default' && cats.length > 1 && !S.key;
@@ -1513,7 +1531,7 @@ function renderList() {
 }
 
 /* ═══ القارئ ═══ */
-const dlUrl = u => /res\.cloudinary\.com/.test(u) ? u.replace('/upload/', '/upload/fl_attachment/') : u;
+const dlUrl = u => /\.supabase\.co\//.test(u) ? u + '?download=1' : /res\.cloudinary\.com/.test(u) ? u.replace('/upload/', '/upload/fl_attachment/') : u;
 const thumbUrl = u => /res\.cloudinary\.com/.test(u) ? u.replace('/upload/', '/upload/w_360,c_limit,q_auto/') : u;
 function attsHTML(m) {
   const list = m.atts.filter(a => safeUrl(a.url)); if (!list.length) return '';
@@ -1836,6 +1854,7 @@ function sendMail(opt = {}) {
   if (!all.length) { snack('أضف مستلمًا واحدًا على الأقل'); return; }
   const bad = all.filter(a => !(validAddr(a) || (USE_BRIDGE && validEmail(a))));
   if (bad.length) { snack(validEmail(bad[0]) ? 'الإرسال إلى بريد خارجي يتطلب تفعيل جسر البريد: ' + bad[0] : 'عنوان غير صالح: ' + bad[0]); return; }
+  if (famOn() && fam().sendContactsOnly) { const x = all.find(a => !isContact(a) && !isSys(a) && a !== S.user.address); if (x) { snack('الوضع العائلي: لا يمكن الإرسال إلا إلى جهات الاتصال (' + x + ')'); return; } }
   if (all.length > plan().maxRecipients) { snack(`الحد الأقصى ${plan().maxRecipients} مستلمًا في الرسالة الواحدة`); return; }
   if (sendLog().length >= plan().sendsPerHour) { snack('وصلت إلى حد الإرسال في الساعة. حاول لاحقًا.'); return; }
   if (ctx.html.length > MAX_HTML) { snack('الرسالة طويلة جدًا. اختصرها أو قسّمها.'); return; }
@@ -2017,7 +2036,7 @@ function tVacation() {
      <div class="two"><div><label class="lbl">من تاريخ</label><input type="date" id="v-s" value="${v.start ? toLocalInput(v.start).slice(0, 10) : ''}"></div><div><label class="lbl">إلى تاريخ</label><input type="date" id="v-e" value="${v.end ? toLocalInput(v.end).slice(0, 10) : ''}"></div></div>
      <label class="opt"><input type="checkbox" id="v-c" ${v.contactsOnly ? 'checked' : ''}> الرد على جهات اتصالي فقط</label>
      <button type="button" class="btn primary" data-p="vac-save">حفظ</button>`,
-    'يُرسَل الرد مرة واحدة لكل مرسل كل 4 أيام، ويعمل أثناء فتح Rimail على أحد أجهزتك (قيد خطة Spark المجانية).');
+    'يُرسَل الرد مرة واحدة لكل مرسل كل 4 أيام، ويعمل أثناء فتح Rimail على أحد أجهزتك.');
 }
 function tSignature() {
   const T = S.profile.templates;
@@ -2031,6 +2050,8 @@ function tFamily() {
   return sBox('الوضع العائلي', `<p class="muted">مناسب للأطفال: يحمي الحساب برمز ولي أمر، ويحصر الرسائل الواردة بجهات الاتصال المعتمدة؛ أما الغرباء فتظهر رسائلهم في تبويب «طلبات» ليقرّر ولي الأمر.</p>` +
     sRow('تفعيل الوضع العائلي', '', `<label class="sw"><input type="checkbox" id="fam-on" ${f.on ? 'checked' : ''}><span class="knob"></span></label>`) +
     sRow('قبول الرسائل من جهات الاتصال فقط', 'غيرهم يذهبون إلى «طلبات»', `<label class="sw"><input type="checkbox" id="fam-co" ${f.contactsOnly ? 'checked' : ''}><span class="knob"></span></label>`) +
+    sRow('تعطيل الروابط داخل الرسائل', 'تظهر الروابط كنص غير قابل للنقر', `<label class="sw"><input type="checkbox" id="fam-hl" ${f.hideLinks ? 'checked' : ''}><span class="knob"></span></label>`) +
+    sRow('الإرسال إلى جهات الاتصال فقط', 'لا يمكن مراسلة غرباء', `<label class="sw"><input type="checkbox" id="fam-sc" ${f.sendContactsOnly ? 'checked' : ''}><span class="knob"></span></label>`) +
     sRow('رمز ولي الأمر', f.pinHash ? 'مفعّل' : 'غير مُعيَّن', `<button type="button" class="btn" data-p="pin-set">${f.pinHash ? 'تغيير الرمز' : 'تعيين رمز'}</button>${f.pinHash ? '<button type="button" class="btn danger" data-p="pin-clear">إزالة</button>' : ''}`) +
     `<button type="button" class="btn primary" data-p="fam-save">حفظ</button>`);
 }
@@ -2051,7 +2072,7 @@ function tSecurity() {
     `<input type="password" id="pw-old" autocomplete="current-password" placeholder="كلمة المرور الحالية"><input type="password" id="pw-new" autocomplete="new-password" placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)"><button type="button" class="btn primary" data-p="pw-save">تغيير كلمة المرور</button>`) +
     sBox('قفل التطبيق', `<p class="muted">رمز من 4–8 أرقام يُطلب عند فتح التطبيق على هذا الجهاز.</p>` + sRow('الحالة', lock.hash ? 'مفعّل' : 'غير مفعّل', `<button type="button" class="btn" data-p="lock-set">${lock.hash ? 'تغيير' : 'تفعيل'}</button>${lock.hash ? '<button type="button" class="btn danger" data-p="lock-clear">إيقاف</button>' : ''}`)) +
     sBox('آخر عمليات الدخول', log.length ? log.map(l => `<div class="s-row"><div class="s-txt"><b>${esc(fmtFull(l.ts))}</b><small>${esc(l.ua || '')}</small></div></div>`).join('') : '<p class="muted">لا توجد سجلات.</p>') +
-    sBox('الخطة', sRow('خطتك الحالية', `الحالة: ${u.status === 'active' ? 'نشط' : u.status === 'suspended' ? 'موقوف' : 'محظور'}`, `<b>${esc(plan().name)}</b>`));
+    (S.user.isAdmin ? sBox('الحساب (للمشرف)', sRow('الخطة', 'الحالة: ' + (u.status === 'active' ? 'نشط' : u.status === 'suspended' ? 'موقوف' : 'محظور'), `<b>${esc(plan().name)}</b>`)) : (u.status !== 'active' ? sBox('حالة الحساب', `<p class="muted">${u.status === 'suspended' ? 'حسابك موقوف مؤقتًا. تواصل مع المشرف.' : 'حسابك محظور.'}</p>`) : ''));
 }
 function tAccount() {
   return sBox('بياناتي', sRow('تصدير كل الرسائل والإعدادات', 'ملف JSON يمكن استيراده لاحقًا', '<button type="button" class="btn" data-p="export">تصدير</button>') +
@@ -2063,8 +2084,8 @@ function tAccount() {
 }
 function tShortcuts() { return sBox('اختصارات لوحة المفاتيح', SHORTCUTS.map(([k, t]) => `<div class="s-row"><div class="s-txt"><b>${esc(t)}</b></div><div class="s-ctl"><kbd>${esc(k)}</kbd></div></div>`).join('')); }
 function tAbout() {
-  return sBox('Rimail', `<div class="about"><img src="${LOGO}" alt="" width="72" height="72"><div><b>Rimail ${VERSION}</b><p class="muted">بريد إلكتروني عائلي مُهدى إلى ريم 💌</p><p class="muted" dir="ltr">${esc(S.user.address)} · ${USE_FIREBASE ? 'Firebase' : 'وضع تجريبي محلي'}${USE_BRIDGE ? ' · Bridge' : ''}</p></div></div>`) +
-    sBox('حالة الخدمات', `<ul class="muted"><li>التخزين السحابي: ${USE_FIREBASE ? 'مفعّل' : 'محلي تجريبي'}</li><li>رفع المرفقات: ${USE_CLOUD ? 'Cloudinary' : (USE_FIREBASE ? 'غير مفعّل' : 'محلي')}</li><li>البريد الخارجي (Gmail وغيره): ${USE_BRIDGE ? 'مفعّل' : 'غير مفعّل'}</li><li>تسجيل الدخول بجوجل: ${USE_FIREBASE && GOOGLE_SIGNIN ? 'مفعّل' : 'غير مفعّل'}</li></ul>`);
+  const adm = S.user.isAdmin ? sBox('حالة الخدمات (للمشرف فقط)', `<ul class="muted"><li>قاعدة البيانات: ${USE_FIREBASE ? 'Firebase' : 'محلية'}</li><li>رفع المرفقات: ${USE_SUPA ? 'Supabase' : USE_CLOUD ? 'Cloudinary' : (USE_FIREBASE ? 'غير مفعّل' : 'محلي')}</li><li>البريد الخارجي: ${USE_BRIDGE ? 'مفعّل' : 'غير مفعّل'}</li><li>الدخول بجوجل: ${USE_FIREBASE && GOOGLE_SIGNIN ? 'مفعّل' : 'غير مفعّل'}</li></ul>`) : '';
+  return sBox('Rimail', `<div class="about"><img src="${LOGO}" alt="" width="72" height="72"><div><b>Rimail</b><p class="muted">بريد إلكتروني عائلي مُهدى إلى ريم 💌</p><p class="muted" dir="ltr">${esc(S.user.address)}</p></div></div>`) + adm;
 }
 /* بعد الرسم: تهيئة محرر التوقيع */
 function settingsAfter() {
@@ -2092,7 +2113,12 @@ function initPages() {
 }
 const renderPageForce = () => { $('#page').dataset.sig = ''; renderPage(); };
 
-function pageAct(b, e) {
+const PIN_GATED = new Set(['filter-new', 'filter-edit', 'filter-del', 'unblock', 'block-add', 'vac-save', 'pw-save', 'lock-set', 'lock-clear', 'export', 'import', 'wipe', 'delete-acc', 'ct-del', 'label-del']);
+async function pageAct(b, e) {
+  if (PIN_GATED.has(b.dataset.p) && famOn() && fam().pinHash && !(await requirePin('هذا الإجراء محمي برمز ولي الأمر.'))) return;
+  pageActRun(b, e);
+}
+function pageActRun(b, e) {
   const a = b.dataset.p, d = b.dataset;
   const A_ = {
     back: () => go('inbox'), tab: () => go('settings', d.k),
@@ -2146,7 +2172,7 @@ function saveSignature() {
 function saveFamily() {
   const on = $('#fam-on').checked, co = $('#fam-co').checked;
   if (on && !fam().pinHash) return snack('عيّن رمز ولي الأمر أولًا');
-  requirePin('تغيير إعدادات الوضع العائلي').then(ok => { if (ok) { saveProfile({ family: { ...fam(), on, contactsOnly: co } }); snack('تم الحفظ'); } });
+  requirePin('تغيير إعدادات الوضع العائلي').then(ok => { if (ok) { saveProfile({ family: { ...fam(), on, contactsOnly: co, hideLinks: $('#fam-hl').checked, sendContactsOnly: $('#fam-sc').checked } }); snack('تم الحفظ'); } });
 }
 function setPin(kind) {
   dialog({ title: kind === 'family' ? 'رمز ولي الأمر' : 'قفل التطبيق', html: `<input type="password" inputmode="numeric" id="pn1" maxlength="8" placeholder="رمز من 4–8 أرقام" autocomplete="off"><input type="password" inputmode="numeric" id="pn2" maxlength="8" placeholder="أعد كتابة الرمز" autocomplete="off">`,
@@ -2815,7 +2841,7 @@ function renderAuth(claim) {
     ${g}${fields}<div class="a-err" id="a-err" role="alert"></div><button type="submit" class="btn primary wide" id="a-go">${cta}</button>
     ${claim ? '<button type="button" class="link" id="a-out">استخدام حساب آخر</button>' : reset ? '<button type="button" class="link" data-m="login">رجوع</button>' :
       `<div class="a-links">${signup ? '<button type="button" class="link" data-m="login">لدي حساب بالفعل</button>' : `<button type="button" class="link" data-m="signup">إنشاء حساب</button><button type="button" class="link" data-m="reset">نسيت كلمة المرور؟</button>`}</div>`}
-    ${!isStandalone() ? '<button type="button" class="link" id="a-install">📲 تثبيت التطبيق على جهازك</button>' : ''}${appConfig.motd ? `<p class="motd">${esc(appConfig.motd)}</p>` : ''}${!USE_FIREBASE ? '<p class="demo-note">⚠️ وضع تجريبي محلي: البيانات تُحفظ في هذا المتصفح فقط.</p>' : ''}</form>`;
+    ${!isStandalone() ? '<button type="button" class="link" id="a-install">📲 تثبيت التطبيق على جهازك</button>' : ''}${appConfig.motd ? `<p class="motd">${esc(appConfig.motd)}</p>` : ''}</form>`;
   const err = m => { $('#a-err').textContent = m || ''; }, form = $('#a-form'), go_ = $('#a-go');
   A_.querySelectorAll('[data-m]').forEach(b => b.onclick = () => setMode(b.dataset.m));
   $('#a-out')?.addEventListener('click', () => Backend.signOut());
@@ -2855,7 +2881,7 @@ async function seedWelcome() {
   const t = now(), base = { ...blank(), to: [S.user.address], category: 'updates', filtered: true };
   const list = [
     { id: 'welcome-' + S.user.uid, from: 'team@' + DOMAIN, fromName: 'Rimail Team', category: 'primary', subject: `أهلًا ${S.user.name} في Rimail 💌`, ts: t - 1000,
-      body: `أهلًا ${S.user.name}!\n\nهذا بريدك الجديد ${S.user.address}.\n\n• اكتب رسائل منسّقة وأرفق الصور والملفات.\n• نظّم مواعيدك في التقويم.\n• اضبط الرد التلقائي والتوقيع والفلاتر من الإعدادات.\n• يمكنك تثبيت التطبيق على هاتفك من قائمة صورتك.\n\nنتمنى لك تجربة ممتعة!` },
+      body: `أهلًا ${S.user.name}!\n\nهذا بريدك الجديد ${S.user.address}.\n\n• اكتب رسائل منسّقة وأرفق الصور والملفات.\n• نظّم مواعيدك في التقويم.\n• اضبط الرد التلقائي والتوقيع والفلاتر من الإعدادات.\n• يمكنك تثبيت التطبيق على هاتفك من قائمة صورتك.\n\nنتمنى لك وقتًا ممتعًا!` },
     { id: 'tips-' + S.user.uid, from: 'tips@' + DOMAIN, fromName: 'نصائح Rimail', subject: 'نصائح سريعة للبدء', ts: t - 2000,
       body: 'اضغط / للبحث، وc لرسالة جديدة، وجرّب عوامل البحث مثل from: و has:attachment.\nاسحب الرسالة يمينًا أو يسارًا للأرشفة والحذف.\nاضغط ? لمعرفة كل الاختصارات.' }
   ];
