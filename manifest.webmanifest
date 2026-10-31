@@ -1,7 +1,7 @@
 {
   "name": "Rimail — بريد ريم",
   "short_name": "Rimail",
-  "description": "بريد إلكتروني عائلي بتجربة Gmail",
+  "description": "بريد إلكتروني عائلي",
   "id": "/",
   "start_url": "./#!/inbox",
   "scope": "./",
