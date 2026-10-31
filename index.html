@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-E5vNG/zzcqyOtGP+KamHbKRHs/VDQL1doQObYYRnM3k=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-S6DAoCYoRETnRJkgguFO1EMndURkhVzShGQVu4c8eqM=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -919,7 +919,7 @@ function uploadFile(file, onProgress) {
       const ext = (file.name.match(/\.([A-Za-z0-9]{1,8})$/) || [])[1] || 'bin', path = `${S.user ? S.user.uid : 'u'}/${uid()}.${ext.toLowerCase()}`;
       const x = new XMLHttpRequest();
       x.open('POST', `${SUPA_URL}/storage/v1/object/${encodeURIComponent(SUPA_BUCKET)}/${path}`);
-      x.setRequestHeader('apikey', SUPA.anonKey); x.setRequestHeader('Authorization', 'Bearer ' + SUPA.anonKey); x.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); x.setRequestHeader('x-upsert', 'false');
+      x.setRequestHeader('apikey', SUPA.anonKey); if (/^eyJ/.test(SUPA.anonKey)) x.setRequestHeader('Authorization', 'Bearer ' + SUPA.anonKey); x.setRequestHeader('Content-Type', file.type || 'application/octet-stream'); x.setRequestHeader('x-upsert', 'false');
       x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
       x.onload = () => { if (x.status < 300) resolve({ url: `${SUPA_URL}/storage/v1/object/public/${encodeURIComponent(SUPA_BUCKET)}/${path}` }); else reject({ code: 'rimail/upload' }); };
       x.onerror = () => reject({ code: 'rimail/upload' }); x.send(file);
