@@ -13,7 +13,7 @@ window.RIMAIL_CONFIG = {
 
   /* 2) رفع المرفقات المجاني (Cloudinary → Settings → Upload → Unsigned preset) */
   /* 2-ب) بديل Cloudinary (إن لم يتوفر في بلدك): Supabase Storage — انظر README. اتركه كما هو إن استخدمت Cloudinary */
-  supabase: { url: 'YOUR_SUPABASE_URL', anonKey: 'YOUR_SUPABASE_ANON_KEY', bucket: 'attachments' },
+  supabase: { url: 'https://nhfuzjeoqyqgcxwjsnlw.supabase.co/rest/v1/', anonKey: 'sb_publishable_LOh8__PmQlPg9MlNkzrYag_ZoOaWysC', bucket: 'attachments' },
   cloudinary: { cloudName: 'YOUR_CLOUD_NAME', uploadPreset: 'YOUR_UNSIGNED_PRESET' },
 
   /* 3) نطاق العناوين الداخلية: name@DOMAIN. يجب أن يطابق ما استخدمته عند البناء (build.py --domain) */
