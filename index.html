@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-7qsVw8EeedxLgbKceLz0lsBbzqiepiYjpUZ/Kby5UDI=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-GHN9CI4V2j/x3H4M7O7Rk5EXPAuM5xdiXoX/FL+CJXQ=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -534,7 +534,7 @@ const DEF = {
   swipeRight: 'trash', swipeLeft: 'archive', autoAdvance: 'list',
   replyDefault: 'reply', quoteOnReply: true, smartReply: true, sendArchive: false,
   undoSecs: 5, signature: '', signatureHtml: '', signatureOnReply: true, spellcheck: true,
-  starSet: ['yellow'], receipts: 'ask', shortcuts: true, notify: false, sound: false
+  starSet: ['yellow'], receipts: 'ask', shortcuts: true, notify: true, sound: true
 };
 const ACCENTS = {
   red: ['أحمر', '#d93025'], blue: ['أزرق', '#0b57d0'], pink: ['وردي', '#d81b7a'], purple: ['بنفسجي', '#7b1fa2'],
@@ -1407,13 +1407,20 @@ function renderNow() {
   updateTitle();
 }
 function counts() {
-  const c = { inbox: 0, draft: 0, spam: 0, scheduled: 0, cat: { primary: 0, promo: 0, social: 0, updates: 0, requests: 0 } }, n = now();
+  const c = { inbox: 0, draft: 0, spam: 0, scheduled: 0, starred: 0, important: 0, all: 0, trash: 0, lab: {}, cat: { primary: 0, promo: 0, social: 0, updates: 0, requests: 0 } }, n = now();
   for (const m of S.mails) {
     if (isExpired(m)) continue;
     if (m.folder === 'inbox' && !m.archived && !m.read && !(m.snoozeUntil > n)) { c.inbox++; c.cat[catOf(m)]++; }
     if (m.folder === 'draft') c.draft++;
     if (m.folder === 'scheduled') c.scheduled++;
     if (m.folder === 'spam' && !m.read) c.spam++;
+    if (m.folder === 'trash' && !m.read) c.trash++;
+    if (!m.read && !(m.snoozeUntil > n) && ['inbox', 'sent'].includes(m.folder)) {
+      if (!m.archived || m.folder === 'sent') c.all++;
+      if (m.starred) c.starred++;
+      if (m.important) c.important++;
+      for (const l of m.labels || []) c.lab[l] = (c.lab[l] || 0) + 1;
+    }
   }
   return c;
 }
@@ -1424,14 +1431,14 @@ function updateTitle() {
 
 /* ═══ الدرج الجانبي ═══ */
 function renderDrawer() {
-  const c = counts(), cnt = { inbox: c.inbox, draft: c.draft, spam: c.spam, scheduled: c.scheduled };
+  const c = counts(), cnt = { inbox: c.inbox, draft: c.draft, spam: c.spam, scheduled: c.scheduled, starred: c.starred, important: c.important, all: c.all, trash: c.trash };
   const item = (v, ic, t, n, extra = '') => `<div class="nav-item ${S.view === v ? 'active' : ''}" role="button" tabindex="0" data-view="${esc(v)}" ${extra}>${I(ic, S.view === v && v === 'starred' ? 'fill' : '')}<span class="lbl">${esc(t)}</span>${n ? `<span class="cnt">${n}</span>` : ''}</div>`;
   const labels = S.profile.labels.filter(l => !S.profile.labelMeta[l]?.hide);
   $('#drawer').innerHTML =
     `<div class="brand"><img src="${LOGO}" alt="" width="34" height="34">Rimail</div><div class="fab-spacer"></div>` +
     NAV.filter(([v]) => v !== 'scheduled' || c.scheduled).map(([v, ic, t]) => item(v, ic, t, cnt[v])).join('') +
     `<div class="nav-sep"></div><div class="nav-head"><span class="grow">التصنيفات</span></div>` +
-    labels.map(l => `<div class="nav-item ${S.view === 'l:' + l ? 'active' : ''}" role="button" tabindex="0" data-view="${esc('l:' + l)}" data-drop="label:${esc(l)}"><span class="material-symbols-outlined fill" style="color:${labelColor(l)}" aria-hidden="true">label</span><span class="lbl">${esc(l)}</span><button type="button" class="icon-btn lm" data-lm="${esc(l)}" aria-label="خيارات التصنيف">${I('more_vert')}</button></div>`).join('') +
+    labels.map(l => `<div class="nav-item ${S.view === 'l:' + l ? 'active' : ''}" role="button" tabindex="0" data-view="${esc('l:' + l)}" data-drop="label:${esc(l)}"><span class="material-symbols-outlined fill" style="color:${labelColor(l)}" aria-hidden="true">label</span><span class="lbl">${esc(l)}</span>${c.lab[l] ? `<span class="cnt">${c.lab[l]}</span>` : ''}<button type="button" class="icon-btn lm" data-lm="${esc(l)}" aria-label="خيارات التصنيف">${I('more_vert')}</button></div>`).join('') +
     `<div class="nav-item" role="button" tabindex="0" data-addlabel="1">${I('add')}<span class="lbl">إنشاء تصنيف جديد</span></div><div class="nav-sep"></div>` +
     item('calendar', 'calendar_month', 'التقويم') + item('contacts', 'contacts', 'جهات الاتصال') + item('settings', 'settings', 'الإعدادات') +
     (S.user.isAdmin ? item('admin', 'admin_panel_settings', 'لوحة الإشراف') : '') +
@@ -2078,6 +2085,7 @@ function tAccount() {
     sRow('استيراد من ملف', 'استيراد نسخة Rimail احتياطية', '<button type="button" class="btn" data-p="import">استيراد</button><input type="file" id="imp-file" accept=".json,application/json" hidden>') +
     sRow('تصدير جهات الاتصال (CSV)', '', '<button type="button" class="btn" data-p="csv-export">تصدير</button>') +
     sRow('تصدير التقويم (ICS)', '', '<button type="button" class="btn" data-p="ics-export">تصدير</button>')) +
+    sBox('معرّف الحساب', sRow('المعرّف الفريد لحسابك', S.user.uid, '<button type="button" class="btn" data-p="copy-uid">نسخ</button>')) +
     sBox('منطقة الخطر', sRow('إفراغ كل الرسائل', 'حذف نهائي لكل رسائلك', '<button type="button" class="btn danger" data-p="wipe">إفراغ</button>') +
       sRow('حذف الحساب نهائيًا', 'لا يمكن التراجع', '<button type="button" class="btn danger" data-p="delete-acc">حذف الحساب</button>'));
 }
@@ -2133,6 +2141,7 @@ function pageActRun(b, e) {
     'av-pick': () => $('#av-file').click(), 'av-del': async () => { await Backend.updatePublic({ avatar: '' }); saveProfile({ avatar: '' }); AvCache.clear(); },
     'pf-save': saveProfileForm, 'pw-save': savePassword,
     'lock-set': () => setPin('lock'), 'lock-clear': () => saveProfile({ appLock: {} }),
+    'copy-uid': async () => { try { await navigator.clipboard.writeText(S.user.uid); snack('تم نسخ المعرّف'); } catch { prompt('انسخ المعرّف:', S.user.uid); } },
     export: exportAll, import: () => $('#imp-file').click(), 'csv-export': exportCSV, 'ics-export': () => exportICS(S.events),
     wipe: wipeAll, 'delete-acc': deleteAccount,
     ...contactActs(d), ...calActs(d), ...adminActs(d)
@@ -2773,15 +2782,25 @@ async function sendReceipt(m) {
 }
 /* إشعارات */
 function beep() { try { const c = new (window.AudioContext || window.webkitAudioContext)(), o = c.createOscillator(), g = c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value = 880; g.gain.value = .05; o.start(); o.stop(c.currentTime + .15); } catch {} }
-function notify(title, body, tag) {
+function notify(title, body, tag, onOpen) {
   if (S.settings.sound) beep();
-  if (S.settings.notify && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
-    try { const n = new Notification(title, { body: String(body).slice(0, 120), icon: 'icon-192.png', tag }); n.onclick = () => { window.focus(); n.close(); }; } catch {}
-  }
+  if (document.hidden) {
+    if (S.settings.notify && 'Notification' in window && Notification.permission === 'granted') {
+      const o = { body: String(body).slice(0, 120), icon: 'icon-192.png', tag, dir: 'rtl', lang: 'ar' };
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(r => r.showNotification(title, o)).catch(() => { try { new Notification(title, o); } catch {} });
+      else { try { const n = new Notification(title, o); n.onclick = () => { window.focus(); n.close(); }; } catch {} }
+    }
+  } else if (onOpen) snack('✉ ' + title + ' — ' + String(body).slice(0, 60), { label: 'عرض', fn: onOpen }, 8000);
+}
+/* طلب إذن الإشعارات عند أول تفاعل (يشترطه المتصفح) */
+function askNotifyOnce() {
+  if (!('Notification' in window) || Notification.permission !== 'default' || !S.settings.notify) return;
+  const f = () => { document.removeEventListener('pointerdown', f, true); try { Notification.requestPermission(); } catch {} };
+  document.addEventListener('pointerdown', f, true);
 }
 function notifyMail(m) {
   if (m.ts < BG.boot - 6e4 || BG.notified.has(m.id) || m.folder !== 'inbox' || m.archived || m.read || m.category === 'requests') return;
-  BG.notified.add(m.id); notify(m.fromName || m.from, m.subject || '(بدون موضوع)', m.id);
+  BG.notified.add(m.id); notify(m.fromName || m.from, m.subject || '(بدون موضوع)', m.id, () => go('inbox', threadKey(m)));
 }
 /* تذكيرات التقويم */
 function checkReminders() {
@@ -2894,6 +2913,7 @@ async function onUser(u) {
   if (u.status === 'banned') { await Backend.signOut(); showAuth(true); renderAuth(); $('#a-err').textContent = 'هذا الحساب محظور.'; return; }
   if (appConfig.maintenance && !u.isAdmin) { await Backend.signOut(); showAuth(true); renderAuth(); $('#a-err').textContent = 'التطبيق تحت الصيانة حاليًا. حاول لاحقًا.'; return; }
   S.user = u; setProfile(u.profile);
+  try { askNotifyOnce(); } catch {}
   if (S.profile.appLock?.hash && !S.unlocked) { showAuth(true); $('#auth').innerHTML = ''; if (!(await showLock())) return; }
   showAuth(false);
   $('#hdr-avatar').innerHTML = ''; updateHdrAvatar();
