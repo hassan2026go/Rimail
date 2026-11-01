@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-S6DAoCYoRETnRJkgguFO1EMndURkhVzShGQVu4c8eqM=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-7qsVw8EeedxLgbKceLz0lsBbzqiepiYjpUZ/Kby5UDI=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -483,7 +483,6 @@ html,body{overflow-x:hidden;max-width:100vw}#app{overflow-x:clip}
 const CFG = window.RIMAIL_CONFIG || {};
 const FIREBASE_CONFIG = CFG.firebase || { apiKey: 'YOUR_API_KEY' };
 const CLOUDINARY = CFG.cloudinary || { cloudName: 'YOUR_CLOUD_NAME', uploadPreset: 'YOUR_UNSIGNED_PRESET' };
-const GIFT_NOTE = CFG.giftNote || '';
 const BRIDGE_URL = String(CFG.bridgeUrl || '').replace(/\/$/, '');
 const GOOGLE_SIGNIN = CFG.googleSignIn !== false;
 
@@ -865,7 +864,7 @@ async function makeFirebase() {
           const s = await F.getDoc(D('usernames', u));
           if (!s.exists()) { failed.push(u); return; }
           const c = inboxCopy(m); await F.setDoc(D('mailboxes', s.data().uid, 'mails', c.id), c);
-        } catch (e) { console.error(e); failed.push(u); }
+        } catch (e) { console.error(e); window.__dErr = (e && (e.code || e.message)) || 'error'; failed.push(u); }
       }));
       return failed;
     },
@@ -1881,7 +1880,7 @@ async function finalizeSend(mail, replyKey) {
   const t = now(); let expires = 0; if (mail.expires < 0) expires = t - mail.expires; else if (mail.expires > 1) expires = mail.expires;
   mail = { ...mail, ts: t, expires, folder: 'sent', read: true, sendAt: 0 };
   const rec = uniq([...mail.to, ...mail.cc, ...mail.bcc]), internal = rec.filter(isInternal), external = rec.filter(a => !isInternal(a));
-  let failed = [], extFailed = [];
+  let failed = [], extFailed = []; window.__dErr = '';
   try { failed = internal.length ? await Backend.deliver(internal.map(local), mail) : []; } catch (e) { console.error(e); failed = internal.map(local); if (e && e.code === 'rimail/suspended') { snack(errMsg(e)); } }
   if (external.length) {
     if (USE_BRIDGE) {
@@ -1896,7 +1895,7 @@ async function finalizeSend(mail, replyKey) {
   const allFailed = [...failed.map(u => u + '@' + DOMAIN), ...extFailed];
   if (allFailed.length) {
     await Backend.save({ ...blank(), id: uid(), from: 'mailer-daemon@' + DOMAIN, fromName: 'Mail Delivery Subsystem', to: [S.user.address], ts: now(), auto: true, filtered: true, threadId: mail.threadId,
-      subject: 'تعذّر تسليم الرسالة: ' + (mail.subject || '(بدون موضوع)'), body: `لم يتم تسليم رسالتك إلى:\n${allFailed.join('\n')}\n\nالسبب: العنوان غير موجود أو تعذّر الوصول إليه.` });
+      subject: 'تعذّر تسليم الرسالة: ' + (mail.subject || '(بدون موضوع)'), body: `لم يتم تسليم رسالتك إلى:\n${allFailed.join('\n')}\n\nالسبب: العنوان غير موجود أو تعذّر الوصول إليه.${window.__dErr ? '\nرمز الخطأ: ' + window.__dErr : ''}` });
     snack('تعذّر تسليم الرسالة إلى بعض المستلمين');
   } else snack('تم إرسال الرسالة', { label: 'عرض', fn: () => go('sent', threadKey(mail)) });
   if (replyKey) { const ids = (S.threads.get(replyKey) || []).filter(m => m.folder === 'inbox').map(m => m.id); if (ids.length) { S.settings.sendArchive ? A.archive(ids) : Promise.all(ids.map(i => Backend.patch(i, { read: true }))); } }
@@ -2085,7 +2084,7 @@ function tAccount() {
 function tShortcuts() { return sBox('اختصارات لوحة المفاتيح', SHORTCUTS.map(([k, t]) => `<div class="s-row"><div class="s-txt"><b>${esc(t)}</b></div><div class="s-ctl"><kbd>${esc(k)}</kbd></div></div>`).join('')); }
 function tAbout() {
   const adm = S.user.isAdmin ? sBox('حالة الخدمات (للمشرف فقط)', `<ul class="muted"><li>قاعدة البيانات: ${USE_FIREBASE ? 'Firebase' : 'محلية'}</li><li>رفع المرفقات: ${USE_SUPA ? 'Supabase' : USE_CLOUD ? 'Cloudinary' : (USE_FIREBASE ? 'غير مفعّل' : 'محلي')}</li><li>البريد الخارجي: ${USE_BRIDGE ? 'مفعّل' : 'غير مفعّل'}</li><li>الدخول بجوجل: ${USE_FIREBASE && GOOGLE_SIGNIN ? 'مفعّل' : 'غير مفعّل'}</li></ul>`) : '';
-  return sBox('Rimail', `<div class="about"><img src="${LOGO}" alt="" width="72" height="72"><div><b>Rimail</b><p class="muted">بريد إلكتروني عائلي مُهدى إلى ريم 💌</p><p class="muted" dir="ltr">${esc(S.user.address)}</p></div></div>`) + adm;
+  return sBox('Rimail', `<div class="about"><img src="${LOGO}" alt="" width="72" height="72"><div><b>Rimail</b><p class="muted">بريد إلكتروني</p><p class="muted" dir="ltr">${esc(S.user.address)}</p></div></div>`) + adm;
 }
 /* بعد الرسم: تهيئة محرر التوقيع */
 function settingsAfter() {
@@ -2443,7 +2442,7 @@ function admReports(list) {
   const r = list.filter(x => x.status === 'open'), done = list.filter(x => x.status !== 'open').slice(0, 20);
   const row = x => `<div class="s-row rep"><div class="s-txt"><b>${esc(x.reason || 'بلاغ')} — ${esc(x.subject || '(بدون موضوع)')}</b><small dir="auto">من: ${esc(x.from || '')} · ${esc(fmtFull(x.ts || 0))}</small>${x.note ? `<small>ملاحظة: ${esc(x.note)}</small>` : ''}<p class="snip" dir="auto">${esc(x.snippet || '')}</p></div>
     <div class="s-ctl">${x.status === 'open' ? `${x.reportedUser ? `<button type="button" class="btn danger" data-p="adm-rep-ban" data-id="${esc(x.id)}" data-u="${esc(x.reportedUser)}">إيقاف المرسل</button>` : ''}<button type="button" class="btn" data-p="adm-rep" data-id="${esc(x.id)}" data-s="resolved">تمت المعالجة</button><button type="button" class="btn" data-p="adm-rep" data-id="${esc(x.id)}" data-s="dismissed">تجاهل</button>` : `<small class="muted">${x.status === 'resolved' ? 'عولج' : 'تجاهل'}</small>`}</div></div>`;
-  return sBox(`بلاغات مفتوحة (${r.length})`, r.length ? r.map(row).join('') : '<p class="muted">لا توجد بلاغات مفتوحة 🎉</p>') + (done.length ? sBox('سابقة', done.map(row).join('')) : '');
+  return sBox(`بلاغات مفتوحة (${r.length})`, r.length ? r.map(row).join('') : '<p class="muted">لا توجد بلاغات مفتوحة</p>') + (done.length ? sBox('سابقة', done.map(row).join('')) : '');
 }
 function admConfig(c) {
   return sBox('إعدادات التطبيق', sRow('فتح التسجيل', 'السماح بإنشاء حسابات جديدة', `<label class="sw"><input type="checkbox" id="cf-su" ${c.signupOpen ? 'checked' : ''}><span class="knob"></span></label>`) +
@@ -2880,12 +2879,11 @@ function showLock() {
 async function seedWelcome() {
   const t = now(), base = { ...blank(), to: [S.user.address], category: 'updates', filtered: true };
   const list = [
-    { id: 'welcome-' + S.user.uid, from: 'team@' + DOMAIN, fromName: 'Rimail Team', category: 'primary', subject: `أهلًا ${S.user.name} في Rimail 💌`, ts: t - 1000,
-      body: `أهلًا ${S.user.name}!\n\nهذا بريدك الجديد ${S.user.address}.\n\n• اكتب رسائل منسّقة وأرفق الصور والملفات.\n• نظّم مواعيدك في التقويم.\n• اضبط الرد التلقائي والتوقيع والفلاتر من الإعدادات.\n• يمكنك تثبيت التطبيق على هاتفك من قائمة صورتك.\n\nنتمنى لك وقتًا ممتعًا!` },
+    { id: 'welcome-' + S.user.uid, from: 'team@' + DOMAIN, fromName: 'Rimail Team', category: 'primary', subject: `مرحبًا بك في Rimail`, ts: t - 1000,
+      body: `مرحبًا ${S.user.name}،\n\nهذا بريدك الجديد ${S.user.address}.\n\n• اكتب رسائل منسّقة وأرفق الصور والملفات.\n• نظّم مواعيدك في التقويم.\n• اضبط الرد التلقائي والتوقيع والفلاتر من الإعدادات.\n• يمكنك تثبيت التطبيق على هاتفك من قائمة صورتك.` },
     { id: 'tips-' + S.user.uid, from: 'tips@' + DOMAIN, fromName: 'نصائح Rimail', subject: 'نصائح سريعة للبدء', ts: t - 2000,
       body: 'اضغط / للبحث، وc لرسالة جديدة، وجرّب عوامل البحث مثل from: و has:attachment.\nاسحب الرسالة يمينًا أو يسارًا للأرشفة والحذف.\nاضغط ? لمعرفة كل الاختصارات.' }
   ];
-  if (GIFT_NOTE) list.unshift({ id: 'gift-' + S.user.uid, from: 'dad@' + DOMAIN, fromName: 'بابا 💝', subject: 'هدية خاصة لك', ts: t, body: GIFT_NOTE, category: 'primary' });
   for (const m of list) await Backend.save({ ...base, ...m, html: textToHtml(m.body), read: false });
 }
 async function onUser(u) {
