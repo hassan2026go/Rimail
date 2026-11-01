@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-GHN9CI4V2j/x3H4M7O7Rk5EXPAuM5xdiXoX/FL+CJXQ=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-XJuLShOM2aN8dp6qs2GYJRRcSGimtFtIcLnzePrssOc=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -817,7 +817,7 @@ async function makeFirebase() {
     if (!acc.exists()) return { uid: fu.uid, username: null, name: fu.displayName || '', email: fu.email || '', photo: fu.photoURL || '', address: null, plan: 'free', status: 'active', isAdmin: false, profile: newProfile() };
     const a = acc.data();
     return { uid: fu.uid, username: a.username, name: a.name, email: fu.email || '', address: a.username + '@' + DOMAIN, plan: a.plan || 'free', status: a.status || 'active',
-      isAdmin: !!(adm && adm.exists()), hasPassword: fu.providerData.some(x => x.providerId === 'password'), createdAt: a.createdAt, profile: { ...newProfile(), ...(prof.exists() ? prof.data() : {}) } };
+      isAdmin: !!(adm && adm.exists()) || a.role === 'admin', hasPassword: fu.providerData.some(x => x.providerId === 'password'), createdAt: a.createdAt, profile: { ...newProfile(), ...(prof.exists() ? prof.data() : {}) } };
   }
   return {
     name: 'firebase',
