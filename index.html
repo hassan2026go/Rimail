@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-XJuLShOM2aN8dp6qs2GYJRRcSGimtFtIcLnzePrssOc=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-QK8WQX3V6b1vv2wkGtX+p/8qNIMlHlfr/JbYIl2BgZQ=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -1195,9 +1195,11 @@ function errMsg(e) {
     'rimail/closed': 'التسجيل مغلق حاليًا.', 'rimail/suspended': 'حسابك موقوف ولا يمكنه الإرسال.', 'rimail/quota': 'امتلأت مساحة التخزين المحلية.',
     'rimail/nocloud': 'إرفاق الملفات غير متاح حاليًا.', 'rimail/toobig-local': 'حجم الملف كبير جدًا.',
     'rimail/upload': 'فشل رفع الملف.', 'rimail/image': 'تعذّر قراءة الصورة.', 'rimail/bridge': 'تعذّر الاتصال بجسر البريد الخارجي.',
+    'auth/unauthorized-domain': 'هذا العنوان غير مسموح له بتسجيل الدخول عبر جوجل (أضِفه في النطاقات المصرّح بها).', 'auth/operation-not-allowed': 'الدخول عبر جوجل غير مفعّل بعد في الإعدادات.',
+    'auth/popup-blocked': 'حجب المتصفح نافذة تسجيل الدخول. اسمح بالنوافذ المنبثقة وأعد المحاولة.', 'auth/account-exists-with-different-credential': 'يوجد حساب بهذا البريد بطريقة دخول أخرى.',
     'permission-denied': 'لا تملك صلاحية هذا الإجراء.', 'unavailable': 'الخدمة غير متاحة. تحقق من الاتصال.'
   };
-  return map[c] || 'حدث خطأ غير متوقع. حاول مرة أخرى.';
+  return map[c] || ('حدث خطأ غير متوقع. حاول مرة أخرى.' + (c ? ' (' + c + ')' : ''));
 }
 
 /* ═══ الصور الشخصية: ذاكرة مؤقتة لصور المرسلين ═══ */
