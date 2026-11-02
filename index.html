@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-QK8WQX3V6b1vv2wkGtX+p/8qNIMlHlfr/JbYIl2BgZQ=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-FhfYVEIkI23FHepVHJWpV+xThYHEM+srZ2damCTEmh4=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -799,8 +799,12 @@ function makeLocal() {
 
 /* ═══ تنفيذ Firebase ═══ */
 async function makeFirebase() {
-  const V = '10.12.2', base = `https://www.gstatic.com/firebasejs/${V}/`;
-  const [A, Au, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const V = '10.12.2', tmo = (p, ms) => Promise.race([p, new Promise((_, rj) => setTimeout(() => rj(new Error('timeout')), ms))]);
+  const loadFrom = (base, suf) => Promise.all(['app', 'auth', 'firestore'].map(n => import(base + (suf ? n + '/+esm' : 'firebase-' + n + '.js'))));
+  let mods;
+  try { mods = await tmo(loadFrom(`https://www.gstatic.com/firebasejs/${V}/`, false), 15000); }
+  catch (e1) { console.warn('primary sdk source failed', e1); mods = await tmo(loadFrom(`https://cdn.jsdelivr.net/npm/firebase@${V}/`, true), 20000); }
+  const [A, Au, F] = mods;
   const app = A.initializeApp(FIREBASE_CONFIG);
   const auth = Au.initializeAuth(app, { persistence: [Au.indexedDBLocalPersistence, Au.browserLocalPersistence], popupRedirectResolver: Au.browserPopupRedirectResolver });
   let db;
@@ -2908,6 +2912,7 @@ async function seedWelcome() {
   for (const m of list) await Backend.save({ ...base, ...m, html: textToHtml(m.body), read: false });
 }
 async function onUser(u) {
+  S.booted = true; $('#boot').hidden = true;
   unwatchMail && unwatchMail(); unwatchEv && unwatchEv(); unwatchMail = unwatchEv = null; closeCompose(false);
   if (!u) { S.user = null; S.mails = []; S.events = []; S.unlocked = false; loggedLog = false; S.byId = new Map(); S.threads = new Map(); authMode = 'login'; showAuth(true); renderAuth(); return; }
   try { appConfig = await Backend.getConfig(); } catch {}
@@ -2934,7 +2939,10 @@ async function boot() {
   applyAppearance();
   try { Backend = USE_FIREBASE ? await makeFirebase() : makeLocal(); }
   catch (e) { console.error(e); $('#boot').innerHTML = '<p>تعذّر تحميل الخدمة. تحقق من الاتصال ثم أعد المحاولة.</p><button class="btn primary" id="boot-retry">إعادة المحاولة</button>'; $('#boot-retry').onclick = () => location.reload(); return; }
-  $('#boot').hidden = true; bindEvents(); initPages(); startBackground();
+  bindEvents(); initPages(); startBackground();
+  /* يبقى شعار التحميل ظاهرًا حتى تصل أول حالة دخول؛ وإن تأخرت نعرض رسالة وإعادة المحاولة بدل شاشة بيضاء */
+  S.booted = false;
+  setTimeout(() => { if (!S.booted) { const b = $('#boot'); b.hidden = false; b.innerHTML = '<p>الاتصال بطيء أو متقطّع. تحقق من الإنترنت ثم أعد المحاولة.</p><button class="btn primary" id="boot-retry">إعادة المحاولة</button>'; $('#boot-retry').onclick = () => location.reload(); } }, 15000);
   setInterval(() => { if (S.user && C) C.persist && C.dirty && C.persist(); }, 15000);
   Backend.getConfig().then(c => { appConfig = c; }).catch(() => {});
   Backend.onAuth(onUser);
