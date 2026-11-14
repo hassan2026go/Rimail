@@ -8,7 +8,7 @@
 <meta name="description" content="Rimail — بريد إلكتروني عائلي">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Rimail">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-FhfYVEIkI23FHepVHJWpV+xThYHEM+srZ2damCTEmh4=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-eSljQCK3P+kXCSoonBb+WeEXIVSbBNsrHDcZ3jxkIEk=' 'sha256-IlCNbFlKoAGG1xMXd8RlGhyfoZ1mj93OOrMvrz1SmMk=' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://*.googleusercontent.com; media-src data: blob: https://res.cloudinary.com https://*.supabase.co; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://api.cloudinary.com https://*.supabase.co; frame-src https://*.firebaseapp.com https://accounts.google.com https://apis.google.com https://*.web.app; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Rimail</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
@@ -826,7 +826,8 @@ async function makeFirebase() {
   return {
     name: 'firebase',
     onAuth(cb) {
-      emitUser = async () => { const fu = auth.currentUser; if (!fu) { cur = null; cb(null); return; } try { cur = await loadUser(fu); } catch (e) { console.error(e); cur = null; } cb(cur); };
+      emitUser = async () => { const fu = auth.currentUser; if (!fu) { cur = null; cb(null); return; } try { cur = await loadUser(fu); try { const { profile, ...lite } = cur; localStorage.setItem('rimail_lu_' + fu.uid, JSON.stringify(lite)); } catch {} }
+        catch (e) { console.error(e); cur = null; if (navigator.onLine === false) { try { const l = JSON.parse(localStorage.getItem('rimail_lu_' + fu.uid) || 'null'); if (l && l.username) cur = { ...l, profile: newProfile() }; } catch {} } } cb(cur); };
       Au.onAuthStateChanged(auth, async fu => { await pending; if (!fu) { cur = null; cb(null); return; } await emitUser(); });
     },
     async getConfig() { try { const s = await F.getDoc(D('config', 'app')); return { ...DEF_CONFIG, ...(s.exists() ? s.data() : {}) }; } catch { return { ...DEF_CONFIG }; } },
@@ -1890,6 +1891,10 @@ function sendMail(opt = {}) {
 }
 /* expires سالب = مدة (تُحوَّل إلى وقت مطلق لحظة الإرسال الفعلي) */
 async function finalizeSend(mail, replyKey) {
+  /* بلا اتصال: تُحفظ في «المجدولة» وتُرسل تلقائيًا عند عودة الإنترنت */
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    Backend.save({ ...mail, folder: 'scheduled', sendAt: now(), read: true }); snack('لا يوجد اتصال. ستُرسل الرسالة تلقائيًا عند عودة الإنترنت.', { label: 'عرض', fn: () => go('scheduled') }, 7000); return;
+  }
   const t = now(); let expires = 0; if (mail.expires < 0) expires = t - mail.expires; else if (mail.expires > 1) expires = mail.expires;
   mail = { ...mail, ts: t, expires, folder: 'sent', read: true, sendAt: 0 };
   const rec = uniq([...mail.to, ...mail.cc, ...mail.bcc]), internal = rec.filter(isInternal), external = rec.filter(a => !isInternal(a));
@@ -1915,6 +1920,7 @@ async function finalizeSend(mail, replyKey) {
 }
 /* إرسال المجدولة عند حلول وقتها (يعمل أثناء فتح التطبيق) */
 async function runScheduled() {
+  if (navigator.onLine === false) return;
   const due = S.mails.filter(m => m.folder === 'scheduled' && m.sendAt && m.sendAt <= now());
   for (const m of due) { await Backend.patch(m.id, { sendAt: 0, folder: 'draft' }); await finalizeSend({ ...m, folder: 'sent' }, ''); }
 }
@@ -2914,9 +2920,9 @@ async function seedWelcome() {
 async function onUser(u) {
   S.booted = true; $('#boot').hidden = true;
   unwatchMail && unwatchMail(); unwatchEv && unwatchEv(); unwatchMail = unwatchEv = null; closeCompose(false);
-  if (!u) { S.user = null; S.mails = []; S.events = []; S.unlocked = false; loggedLog = false; S.byId = new Map(); S.threads = new Map(); authMode = 'login'; showAuth(true); renderAuth(); return; }
+  if (!u) { S.user = null; S.mails = []; S.events = []; S.unlocked = false; loggedLog = false; S.byId = new Map(); S.threads = new Map(); authMode = 'login'; showAuth(true); renderAuth(); S.ready = true; return; }
   try { appConfig = await Backend.getConfig(); } catch {}
-  if (!u.username) { showAuth(true); renderAuth({ name: u.name }); return; }
+  if (!u.username) { showAuth(true); renderAuth({ name: u.name }); S.ready = true; return; }
   if (u.status === 'banned') { await Backend.signOut(); showAuth(true); renderAuth(); $('#a-err').textContent = 'هذا الحساب محظور.'; return; }
   if (appConfig.maintenance && !u.isAdmin) { await Backend.signOut(); showAuth(true); renderAuth(); $('#a-err').textContent = 'التطبيق تحت الصيانة حاليًا. حاول لاحقًا.'; return; }
   S.user = u; setProfile(u.profile);
@@ -2929,7 +2935,7 @@ async function onUser(u) {
   unwatchEv = Backend.watchEvents(list => { S.events = list.map(cleanEvent).filter(Boolean); if (S.view === 'calendar') renderPageForce(); });
   if (!S.profile.seeded) { Backend.saveProfile({ seeded: true }); S.profile.seeded = true; seedWelcome().catch(console.error); }
   if (!loggedLog) { loggedLog = true; Backend.touch(); const log = [...(S.profile.loginLog || []), { ts: now(), ua: (navigator.userAgent.match(/(Firefox|Edg|Chrome|Safari)\/[\d.]+/) || [''])[0] + (/Mobi/.test(navigator.userAgent) ? ' · جوال' : '') }].slice(-20); S.profile.loginLog = log; Backend.saveProfile({ loginLog: log }); }
-  if (!location.hash) location.hash = '#!/inbox'; route();
+  if (!location.hash) location.hash = '#!/inbox'; route(); S.ready = true;
 }
 function updateHdrAvatar() { const b = $('#hdr-avatar'); if (b && S.user) b.innerHTML = avatarHTML(S.user.address, S.user.name, 'sender-avatar sm'); }
 const _render = renderNow;
@@ -2940,6 +2946,8 @@ async function boot() {
   try { Backend = USE_FIREBASE ? await makeFirebase() : makeLocal(); }
   catch (e) { console.error(e); $('#boot').innerHTML = '<p>تعذّر تحميل الخدمة. تحقق من الاتصال ثم أعد المحاولة.</p><button class="btn primary" id="boot-retry">إعادة المحاولة</button>'; $('#boot-retry').onclick = () => location.reload(); return; }
   bindEvents(); initPages(); startBackground();
+  window.addEventListener('offline', () => snack('أنت غير متصل. يمكنك تصفّح الرسائل المحفوظة.', null, 5000));
+  window.addEventListener('online', () => { snack('عاد الاتصال'); try { runScheduled(); } catch {} });
   /* يبقى شعار التحميل ظاهرًا حتى تصل أول حالة دخول؛ وإن تأخرت نعرض رسالة وإعادة المحاولة بدل شاشة بيضاء */
   S.booted = false;
   setTimeout(() => { if (!S.booted) { const b = $('#boot'); b.hidden = false; b.innerHTML = '<p>الاتصال بطيء أو متقطّع. تحقق من الإنترنت ثم أعد المحاولة.</p><button class="btn primary" id="boot-retry">إعادة المحاولة</button>'; $('#boot-retry').onclick = () => location.reload(); } }, 15000);
@@ -2949,6 +2957,24 @@ async function boot() {
   if ('serviceWorker' in navigator && /^https:|^http:\/\/localhost/.test(location.href)) navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 boot();
+
+/* شبكة أمان: إن تعطّل التشغيل قبل ظهور الشاشة نعرض سبب الخطأ وزر إصلاح بدل صفحة بيضاء */
+(function () {
+  const show = msg => {
+    if (S.ready) return;
+    const b = document.getElementById('boot'); if (!b) return; b.hidden = false;
+    b.innerHTML = '<p>تعذّر تشغيل التطبيق.</p><pre dir="ltr" style="font-size:11px;max-width:92vw;white-space:pre-wrap;text-align:left;margin:8px 0">' + esc(String(msg).slice(0, 400)) + '</pre><button class="btn primary" id="boot-retry">إعادة المحاولة</button> <button class="btn" id="boot-reset">إصلاح: مسح بيانات الجهاز المؤقتة</button>';
+    document.getElementById('boot-retry').onclick = () => location.reload();
+    document.getElementById('boot-reset').onclick = async () => {
+      try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch {}
+      try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+      try { for (const d of (await indexedDB.databases()) || []) indexedDB.deleteDatabase(d.name); } catch {}
+      setTimeout(() => location.reload(), 600);
+    };
+  };
+  window.addEventListener('error', e => show((e.message || 'error') + (e.filename ? ' @' + String(e.filename).split('/').pop() + ':' + e.lineno : '')));
+  window.addEventListener('unhandledrejection', e => show((e.reason && (e.reason.stack || e.reason.message || e.reason.code)) || e.reason));
+})();
 
 </script>
 </body>
